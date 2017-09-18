@@ -170,6 +170,8 @@ return [
         Tymon\JWTAuth\Providers\JWTAuthServiceProvider::class,
         Laravel\Socialite\SocialiteServiceProvider::class,
         Barryvdh\Cors\ServiceProvider::class,
+        LaravelDoctrine\ORM\DoctrineServiceProvider::class,
+
 
         /*
          * Application Service Providers...
@@ -233,6 +235,14 @@ return [
         'JWTFactory' => Tymon\JWTAuth\Facades\JWTFactory::class,
 
         'Socialite' => Laravel\Socialite\Facades\Socialite::class,
+
+
+        /**
+         * Doctrine
+         */
+        'EntityManager' => LaravelDoctrine\ORM\Facades\EntityManager::class,
+        'Registry'      => LaravelDoctrine\ORM\Facades\Registry::class,
+        'Doctrine'      => LaravelDoctrine\ORM\Facades\Doctrine::class,
     ],
 
 ];

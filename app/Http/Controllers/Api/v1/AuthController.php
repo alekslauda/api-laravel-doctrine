@@ -62,13 +62,15 @@ class AuthController extends Controller
         ]);
     }
 
-    public function facebook(Request $request, JWTAuth $JWTAuth)
+    public function facebook(Request $request, JWTAuth $JWTAuth, \Doctrine\ORM\EntityManagerInterface $em)
     {
         //logic
         //handle data
         //hardcoded should be get from the request
         $provider_id = '930440620437118';
         $user = Social::where('provider_id', '=', $provider_id)->first()->user()->first();
+        $user = $em->find(\App\Entities\User::class, 1);
+        dd($user);
 //password?
         dd($JWTAuth->fromUser($user));
 
