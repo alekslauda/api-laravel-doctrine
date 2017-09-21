@@ -179,7 +179,10 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-
+        /**
+         * if the DI is used properly with correct type hinting in the constructors for basic injection we can skip registering the binding
+         */
+        App\Providers\DbRepositoryProvider::class,
     ],
 
     /*

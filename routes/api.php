@@ -1,5 +1,5 @@
 <?php
-
+use Illuminate\Support\Facades\Config;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,12 +15,15 @@
 Route::group(['namespace' => 'Api\v1', 'prefix' => 'v1'], function(){
 
     Route::group(['prefix' => 'auth'], function($app){
-        $app->post('login', 'AuthController@login');
-        $app->post('register', 'AuthController@register');
+        $app->post('login', 'AuthController@login')->middleware('api.validate.boilerplate:user_login');
+        $app->post('register', 'AuthController@register')->middleware('api.validate.boilerplate:user_register');
         $app->post('facebook', 'AuthController@facebook');
 //        $app->get('facebook/callback', 'AuthController@handleFacebookCallbackUrl');
         $app->get('refresh', 'AuthController@refresh')->middleware('jwt.refresh');
         $app->post('logout', 'AuthController@logout')->middleware('jwt.auth');
+
+        $app->post('recovery', 'AuthController@recovery')->name('password.email')->middleware('api.validate.boilerplate:user_forgot_password');
+        $app->post('reset', 'AuthController@reset')->name('password.reset')->middleware('api.validate.boilerplate:user_reset_password');
     });
 
     Route::group([

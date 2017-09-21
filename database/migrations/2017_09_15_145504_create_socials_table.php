@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use App\Models\Social;
 
 class CreateSocialsTable extends Migration
 {
@@ -15,7 +16,7 @@ class CreateSocialsTable extends Migration
     {
         Schema::create('socials', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('provider');
+            $table->enum('provider', [Social::FACEBOOK, Social::GOOGLE, Social::TWITTER]);
             $table->string('provider_id');
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')
@@ -27,6 +28,12 @@ class CreateSocialsTable extends Migration
             $table->string('user_avatar_original')->nullable();
             $table->string('user_gender')->nullable();
             $table->timestamps();
+
+            /**
+             * add unique on both columns which represent the state that user can have multiple social accounts, but
+             * for example if user have linked his Facebook account, he cant link another facebook account
+             */
+            $table->unique(['provider', 'user_id', 'provider_id']);
         });
     }
 
