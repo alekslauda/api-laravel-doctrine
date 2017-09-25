@@ -16,6 +16,7 @@ class EventServiceProvider extends ServiceProvider
         'App\Events\Event' => [
             'App\Listeners\EventListener',
         ],
+
     ];
 
     /**
@@ -27,6 +28,16 @@ class EventServiceProvider extends ServiceProvider
     {
         parent::boot();
 
+        Event::listen("tymon.jwt.*", function($eventName, $data) {
+           switch($eventName) {
+               case 'tymon.jwt.invalid':
+               case 'tymon.jwt.expired':
+                   throw $data[0];
+                   break;
+               default:
+                   break;
+           }
+        });
         //
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\v1;
 
-use App\Models\Social;
 use App\Repositories\User\DbUserRepository;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -56,7 +55,6 @@ class AuthController extends Controller
     {
         $credentials = $request->all();
         $hasToReleaseToken = Config::get('boilerplate.user_register.register_token_release');
-        $credentials['password'] = Hash::make($credentials['password']);
         $user = new User($credentials);
         if(!$user->save()) {
             return response()->json([

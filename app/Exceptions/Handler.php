@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use Symfony\Component\HttpFoundation\Response as ResponseStatusCodes;
 
 class Handler extends ExceptionHandler
 {
@@ -51,9 +52,15 @@ class Handler extends ExceptionHandler
     public function render($request, Exception $exception)
     {
         if ($exception instanceof TokenExpiredException) {
-            return response()->json(['token_expired'], $exception->getStatusCode());
+            return response()->json([
+                'error' => 'Token expired.',
+                'status_code' => ResponseStatusCodes::HTTP_UNAUTHORIZED
+            ], ResponseStatusCodes::HTTP_UNAUTHORIZED);
         } else if ($exception instanceof TokenInvalidException) {
-            return response()->json(['token_invalid'], $exception->getStatusCode());
+            return response()->json([
+                'error' => 'Invalid token.',
+                'status_code' => ResponseStatusCodes::HTTP_UNAUTHORIZED
+            ], ResponseStatusCodes::HTTP_UNAUTHORIZED);
         }
 
         return parent::render($request, $exception);
