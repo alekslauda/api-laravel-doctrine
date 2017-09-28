@@ -10,7 +10,9 @@ class UserController extends Controller
 {
     public function single(JWTAuth $JWTAuth)
     {
-        dd('some protected data');
+        echo 'some protected data';
+        echo '<hr>';
+        dd($JWTAuth->parseToken()->toUser()->name);
     }
 
     public function all()

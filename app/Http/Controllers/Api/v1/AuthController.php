@@ -2,20 +2,35 @@
 
 namespace App\Http\Controllers\Api\v1;
 
+use App\Notifications\ConfirmationNotification;
 use App\Repositories\User\DbUserRepository;
 use Illuminate\Http\Request;
 use App\Models\User;
 use HttpException;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\JWTAuth;
 use Symfony\Component\HttpFoundation\Response as ResponseStatusCodes;
 
+/**
+        API EarthMedia:
+    in the auth controller where are the reset and confirm end points
+    if we need use the jwt-auth attempt method instead of fromUser(which is being used now) its going to be a problem , because
+    at the moment validateCredentials method which is being used because we are using the Laravel provider is comparing the hashed password vs the plain password
+    and at the moment our two end points is working with already builded user objects so we cant de-hashed it
+
+    a possible solution will be:
+    1.craete custom provider which will extends the laravel and override the validateCredentials method
+    2. than build a logic based on some flag or anything we can pass via the request and skip the hash check if we are using
+        those end points
+ */
+
+
 class AuthController extends Controller
 {
+    use IssueJWTTokenTrait;
+
     private $userRepo;
     private $JWTAuth;
 
@@ -27,34 +42,30 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
-        try {
-            if (! $token = $this->JWTAuth->attempt($credentials)) {
+        $credentials = array_merge([
+                'confirm' => true
+            ], $request->only('email', 'password')
+        );
+
+        if($user = $this->userRepo->retrieveUserByEmail($credentials['email'])) {
+            if(!$user->confirm) {
                 return response()->json([
-                    'error' => 'Invalid credentials.',
+                    'error' => 'Confirm your account. Check your email address - ' . $user->email,
                     'status_code' => ResponseStatusCodes::HTTP_UNAUTHORIZED
                 ], ResponseStatusCodes::HTTP_UNAUTHORIZED);
             }
-        } catch (JWTException $e) {
-            return response()->json([
-                'error' => 'Could not create token.',
-                'status_code' => ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR
-            ], ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        return response()
-            ->json([
-                'message' => 'You have successfully created your token.',
-                'status_code' => ResponseStatusCodes::HTTP_OK
-            ])
-            ->header('Authorization', 'Bearer '.$token);
-
+        return $this->issueToken('attempt', $credentials);
     }
 
     public function register(Request $request)
     {
-        $credentials = $request->all();
-        $hasToReleaseToken = Config::get('boilerplate.user_register.register_token_release');
+        $credentials = array_merge([
+                'confirm' => false,
+                'confirmation_token' => str_random(64)
+            ], $request->only('name', 'email', 'password')
+        );
         $user = new User($credentials);
         if(!$user->save()) {
             return response()->json([
@@ -63,18 +74,35 @@ class AuthController extends Controller
             ], ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        /**
-         * optional check boilerplate configuration
-         */
-        if($hasToReleaseToken) {
-            return $this->login($request);
-        }
+        $user->notify(new ConfirmationNotification($user));
 
         return response()->json([
             'message' => 'You have successfully registered.',
-            'status_code' => ResponseStatusCodes::HTTP_OK,
+            'status_code' => ResponseStatusCodes::HTTP_CREATED,
             'data' => [$user]
         ]);
+    }
+
+    public function confirm($token = null)
+    {
+
+        $user = $this->userRepo->retrieveUserByConfirmationToken($token);
+        $hasToReleaseToken = Config::get('boilerplate.user_confirm_email.confirm_email_token_release');
+        if(!$this->userRepo->confirmEmail($token) || !$user) {
+            return response()->json([
+                'message' => 'Invalid token.',
+                'status_code' => ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR
+            ], ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if($hasToReleaseToken) {
+            return $this->issueToken('fromUser', $user);
+        }
+
+        return response()->json([
+            'message' => 'Email confirmed.',
+            'status_code' => ResponseStatusCodes::HTTP_ACCEPTED
+        ], ResponseStatusCodes::HTTP_ACCEPTED);
     }
 
     /**
@@ -131,10 +159,7 @@ class AuthController extends Controller
     public function logout()
     {
         $this->JWTAuth->invalidate();
-        return response()->json([
-            'message' => 'You have successfully logout.',
-            'status_code' => ResponseStatusCodes::HTTP_NO_CONTENT
-        ], ResponseStatusCodes::HTTP_NO_CONTENT);
+        return response()->json([], ResponseStatusCodes::HTTP_NO_CONTENT);
     }
 
     public function refresh()
@@ -144,8 +169,8 @@ class AuthController extends Controller
          */
         return response()->json([
             'message' => 'You have successfully refreshed your token.',
-            'status_code' => ResponseStatusCodes::HTTP_NO_CONTENT
-        ], ResponseStatusCodes::HTTP_NO_CONTENT);
+            'status_code' => ResponseStatusCodes::HTTP_ACCEPTED
+        ], ResponseStatusCodes::HTTP_ACCEPTED);
     }
 
     /**
@@ -161,8 +186,8 @@ class AuthController extends Controller
             case Password::RESET_LINK_SENT:
                 return response()->json([
                     'message' => 'Reset link sent.',
-                    'status_code' => ResponseStatusCodes::HTTP_NO_CONTENT
-                ], ResponseStatusCodes::HTTP_NO_CONTENT);
+                    'status_code' => ResponseStatusCodes::HTTP_ACCEPTED
+                ], ResponseStatusCodes::HTTP_ACCEPTED);
             case Password::INVALID_USER:
                 throw new HttpException(500);
         }
@@ -174,27 +199,27 @@ class AuthController extends Controller
      */
     public function reset(Request $request)
     {
-        $credentials = $request->all();
+        $credentials = $request->only('email', 'password', 'token', 'password_confirmation');
         $hasToReleaseToken = Config::get('boilerplate.user_reset_password.reset_token_release');
-        $response = Password::reset($credentials, function ($user, $password) {
+        $response = Password::reset($credentials, function ($user, $password) use (&$userResetPassword) {
             $user->password = $password;
             $user->save();
+
+            $userResetPassword = $user;
         });
-        switch ($response) {
-            case Password::PASSWORD_RESET:
-                if($hasToReleaseToken   ) {
-                    return $this->login($request);
-                }
-                return response()->json([
-                    'message' => 'Password reset.',
-                    'status_code' => ResponseStatusCodes::HTTP_NO_CONTENT
-                ], ResponseStatusCodes::HTTP_NO_CONTENT);
-            default:
-                return response()->json([
-                    'message' => 'Could not reset password.',
-                    'status_code' => ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR
-                ], ResponseStatusCodes::HTTP_INTERNAL_SERVER_ERROR);
+
+        $statusCode = ResponseStatusCodes::HTTP_UNAUTHORIZED;
+        if($response == Password::PASSWORD_RESET) {
+            $statusCode = ResponseStatusCodes::HTTP_ACCEPTED;
+            if($hasToReleaseToken) {
+                return $this->issueToken('fromUser', $userResetPassword);
+            }
         }
+
+        return response()->json([
+            'message' => trans($response),
+            'status_code' => $statusCode
+        ], $statusCode);
     }
 
 }

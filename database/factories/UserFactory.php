@@ -16,10 +16,14 @@ use Faker\Generator as Faker;
 $factory->define(App\Models\User::class, function (Faker $faker) {
     static $password;
 
+    $confirm = $faker->boolean();
+
     return [
         'name' => $faker->name,
         'email' => $faker->unique()->safeEmail,
         'password' => $password ?: $password = bcrypt('secret'),
-        'remember_token' => str_random(10),
+        'confirm' => $confirm,
+        'confirmation_token' => !$confirm ? str_random(64) : null,
+//        'remember_token' => str_random(10),
     ];
 });

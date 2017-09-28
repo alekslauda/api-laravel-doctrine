@@ -3,12 +3,13 @@ namespace App\Repositories;
 
 interface DbRepositoryInterface
 {
-    public function getById($id);
+    public function find($id, $columns);
 
-    public function getAll();
+    public function all($columns);
 
-    public function save();
+    public function create(array $attributes);
 
-    public function edit($id);
+    public function update(array $data, $column, $value, $operator);
 
+    public function destroy($ids);
 }

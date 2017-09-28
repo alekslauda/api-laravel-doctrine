@@ -2,7 +2,6 @@
 
 return [
     'user_register' => [
-        'register_token_release' => true,
         'validation_rules' => [
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
@@ -12,11 +11,14 @@ return [
     'user_login' => [
         'validation_rules' => [
             'email' => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
         ]
     ],
+    'user_confirm_email' => [
+        'confirm_email_token_release' => true
+    ],
     'user_forgot_password' => [
-        'forgot_email_subject' => 'example@com',
+        'forgot_email_subject' => env('EMAIL_FROM'),
         'validation_rules' => [
             'email' => 'required|email'
         ]

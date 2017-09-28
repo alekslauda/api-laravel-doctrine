@@ -37,6 +37,10 @@ class ValidateRequestsWithBoilerPlateRules
                 return Config::get('boilerplate.user_register.validation_rules');
             case 'user_login':
                 return Config::get('boilerplate.user_login.validation_rules');
+            case 'user_forgot_password':
+                return Config::get('boilerplate.user_forgot_password.validation_rules');
+            case 'user_reset_password':
+                return Config::get('boilerplate.user_reset_password.validation_rules');
             default:
                 throw new \Exception("Boilerplate config option: {$boilerPlateConfigOptionRules} not found");
         }
